@@ -24,7 +24,7 @@ def main():
     test_dataset = DatasetFactory.get_test_dataset(cfg.model, cfg.INPUT_SIZE)
     test_dataloader = torch.utils.data.DataLoader(test_dataset, batch_size=cfg.BATCH_SIZE,
                             shuffle=False, num_workers = cfg.NUM_WORKS)
-    net = ShuffleNet(cfg.n_locations)
+    net = MobileNet(cfg.n_locations)
     if os.path.exists(cfg.CHECKPOINT_PATH):
         checkpoint = torch.load(cfg.CHECKPOINT_PATH)
         step = checkpoint['step']
@@ -86,8 +86,13 @@ def main():
             #                                                                            train_loss_coords[idx],
             #                                                                            train_loss[idx]))
 
+        torch.save({'epoch': epoch+1,
+                            'step': step,
+                            'net_state_dict': net.state_dict(),
+                            'optimizer_state_dict': optimizer.state_dict(),
+                            'minloss':minloss},
+                           cfg.CHECKPOINT_PATH_NEW)
         with torch.no_grad():
-
             for i_batch, sample_batched in enumerate(test_dataloader):
                 images = sample_batched['image'].to(device)
                 poses = sample_batched['pose'].to(device)

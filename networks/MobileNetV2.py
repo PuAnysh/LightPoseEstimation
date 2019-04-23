@@ -130,6 +130,7 @@ class MobileNet(nn.Module):
                 block(32,32,1,expand_ratio=4,k_s=kernel_size),
                 block(32,32,1,expand_ratio=4,k_s=kernel_size),
                 nn.Conv2d(32, lastest_channel_size, 1, 1, 0, bias=False),
+                nn.BatchNorm2d(lastest_channel_size),
                 nn.Conv2d(lastest_channel_size, n_class, 1, 1, 0, bias=False)
             )
             self.cpm_channel = n_class + self.last_channel
