@@ -63,7 +63,7 @@ class ResEstimator:
         width = canvas.shape[1]
 
         rescale_out = self.rescale(in_npimg, (self.inp_dim, self.inp_dim))
-       
+        #rescale_out = cv2.resize(in_npimg , (self.inp_dim, self.inp_dim))
         image = rescale_out['image']
         image = self.to_tensor(image)
         image = image.unsqueeze(0).to(self.device)
@@ -76,6 +76,25 @@ class ResEstimator:
         keypoints = pose_fun(keypoints).astype(int)
 
         return keypoints , dsntnn.flat_softmax(heat_map[5])
+
+    def Evalinference(self, in_npimg):
+        canvas = np.zeros_like(in_npimg)
+        height = canvas.shape[0]
+        width = canvas.shape[1]
+
+        rescale_out = self.rescale(in_npimg, (self.inp_dim, self.inp_dim))
+        #rescale_out = cv2.resize(in_npimg , (self.inp_dim, self.inp_dim))
+        image = rescale_out['image']
+        image = self.to_tensor(image)
+        image = image.unsqueeze(0).to(self.device)
+        pose_fun = rescale_out['pose_fun']
+        import time
+        ts = time.time()
+        for i in range(100):
+            heat_map  = self.net(image)
+        es = time.time()
+        t = (es-ts)/100
+        print(1/t)
 
     @staticmethod
     def draw_humans(npimg, pose, imgcopy=False):

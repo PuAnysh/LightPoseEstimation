@@ -127,6 +127,69 @@ def compute_oks(anno, predict, delta):
     return oks
 
 
+def computePCKh(anno, predict):
+    anno_count = len(anno['keypoint_annos'].keys())
+    predict_count = len(predict.keys())
+    PCKh = np.zeros((predict_count,14))
+    PCKh[:,:] = np.inf
+    PCKh_cnt = np.zeros(14)
+    # for every human keypoint annotation
+    for i in range(anno_count):
+        tmp = list(anno['keypoint_annos'].keys())[i]
+        keypoint = np.array(anno['keypoint_annos'][tmp])
+        eps = 1e-8
+        head = np.sqrt((keypoint[12]-keypoint[13])**2)+eps
+        keypoint = keypoint.reshape(-1, 3)
+        for j in range(predict_count):
+            tmp = list(predict['keypoint_annos'].keys())[j]
+            predict_keypoint = np.array(predict['keypoint_annos'][tmp]).reshape(-1,3)
+            dis = (keypoint[:, 0] - predict_keypoint[:, 0]) * (keypoint[:, 0] - predict_keypoint[:, 0]) + (
+                        keypoint[:, 1] - predict_keypoint[:, 1]) * (keypoint[:, 1] - predict_keypoint[:, 1])
+
+            dis = np.sqrt(dis*keypoint[:,2])/head
+            # print(dis)
+            # print(PCKh[j])
+            PCKh[j,:] = np.where(PCKh[j] > dis , dis , PCKh[j])
+            PCKh_cnt = PCKh_cnt + (keypoint[:,2] == 3).astype(np.int32)
+
+
+    return PCKh , PCKh_cnt
+
+def PCKh_eval(predictions, annotations, return_dict):
+    PCK_num = np.zeros(14)
+    PCK_tol = np.zeros(0)
+    # Construct set to speed up id searching.
+    prediction_id_set = set(predictions['image_ids'])
+
+    # for every annotation in our test/validation set
+    for image_id in annotations['image_ids']:
+        # if the image in the predictions, then compute oks
+        if image_id in prediction_id_set:
+            PCKh ,PCKh_cnt = computePCKh(anno=annotations['annos'][image_id],predict=predictions['annos'][image_id])
+            PCK_tol = np.append(PCK_tol , PCKh)
+            PCK_num = PCK_num + (1 - PCKh_cnt)
+        else:
+            pass
+            # otherwise report warning
+            # return_dict['warning'].append(image_id + ' is not in the prediction JSON file.')
+            # number of humen in ground truth annotations
+            # gt_n = len(annotations['annos'][image_id]['human_annos'].keys())
+            # fill 0 in oks scores
+            # oks_all = np.concatenate((oks_all, np.zeros((gt_n))), axis=0)
+            # accumulate total num by ground truth number
+            # oks_num += gt_n
+
+    # compute mAP by APs under different oks thresholds
+    PCK_tol = PCK_tol.reshape(-1,14)
+    average_precision = []
+    for threshold in np.linspace(0.5, 0.95, 10):
+        average_precision.append(np.sum(PCK_tol < 1 - threshold, axis=0) / PCK_num)
+        print('AP@{:.2f} is {}'.format(threshold, np.sum(PCK_tol < 1- threshold,axis=0)/PCK_num))
+    return_dict['score'] = np.mean(average_precision)
+
+    return return_dict
+    pass
+
 def keypoint_eval(predictions, annotations, return_dict):
     """Evaluate predicted_file and return mAP."""
 
@@ -171,7 +234,7 @@ def main():
     # Arguments parser
     parser = argparse.ArgumentParser()
     parser.add_argument('--submit', help='prediction json file', type=str,
-                        default='H:\\traindataset\\MPII\\MPII_AUG_prediceAI.json')
+                        default='H:\\LightNet_Pose_Estimation_build_heatmap\\LightPoseEstimation\\evaluate\\datatransform\\LSP_prediceAI.json')
     parser.add_argument('--ref', help='annotation json file', type=str,
                         default='H:\\traindataset\\MPII\\MPII_targetAI.json')
     args = parser.parse_args()
@@ -196,7 +259,10 @@ def main():
 
     # Keypoint evaluation
     start_time = time.time()
-    return_dict = keypoint_eval(predictions=predictions,
+    # return_dict = keypoint_eval(predictions=predictions,
+    #                             annotations=annotations,
+    #                             return_dict=return_dict)
+    return_dict = PCKh_eval(predictions=predictions,
                                 annotations=annotations,
                                 return_dict=return_dict)
     print('Complete evaluation in %.2f seconds.' % (time.time() - start_time))

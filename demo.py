@@ -18,9 +18,11 @@ image = cv2.imread(img_path)
 img = image.copy()
 with torch.no_grad():
     ts = time.time()
-    humans , heat_map = e.inference(img)
-    print(1 / (time.time() - ts))
-    print(humans)
+    for i in range(100):
+        humans , heat_map = e.Evalinference(img)
+    es = time.time()
+    print(1 / ((time.time() - ts)/100))
+    #print(humans)
     image_out = ResEstimator.draw_humans(image, humans, imgcopy=False)
 
     # for i in range(heat_map.shape[1]):

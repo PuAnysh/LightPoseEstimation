@@ -114,6 +114,10 @@ class MobileNet(nn.Module):
         self.features.append(conv_1x1_bn(input_channel, self.last_channel))
         # make it nn.Sequential
         self.features = nn.Sequential(*self.features)
+        # 使用上采样提高分辨率
+        #self.conv_compress = nn.Conv2d(1280, 256, 1, 1, 0, bias=False)
+        # self.duc1 = DUC(self.last_channel, self.last_channel, upscale_factor=2)
+        # self.last_channel = self.last_channel//4
 
         # building CPM layer
         self.stage = 6
@@ -131,6 +135,7 @@ class MobileNet(nn.Module):
                 block(32,32,1,expand_ratio=4,k_s=kernel_size),
                 nn.Conv2d(32, lastest_channel_size, 1, 1, 0, bias=False),
                 nn.BatchNorm2d(lastest_channel_size),
+                nn.ReLU6(inplace=True),
                 nn.Conv2d(lastest_channel_size, n_class, 1, 1, 0, bias=False)
             )
             self.cpm_channel = n_class + self.last_channel
@@ -140,6 +145,8 @@ class MobileNet(nn.Module):
 
     def forward(self, x):
         feature = self.features(x)
+        #feature = self.conv_compress(feature)
+        #feature = self.duc1(feature)
         x = feature
         heatmaps = []
         for i, stage in enumerate(self.cpm ):
